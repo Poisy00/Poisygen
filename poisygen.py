@@ -1,4 +1,4 @@
-"""Poisygen: standalone BIN-based credit card generator for QA testing.
+"""Poisygen: Poisy's BIN-based card generator and random US address fetcher for QA testing.
 
 Developed and maintained by Poisy. All usage must adhere to the testing-only
 policy noted below.
