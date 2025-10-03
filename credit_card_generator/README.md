@@ -39,10 +39,15 @@ python poisygen.py --bin 378282 --length 15 --count 25 --format json --output am
 python poisygen.py --interactive
 ```
 
+```bash
+python poisygen.py --mode address
+```
+
 ## Features
 
 - Accepts BINs (6-9 digits) and BIN patterns with `x` placeholders.
-- Generates 13–19 digit card numbers that always pass Luhn checks.
+- Generates 13-19 digit card numbers that always pass Luhn checks.
+- Fetches random US addresses and prints labeled Street/City/State/Zip output.
 - Provides random CVV codes (3 digits or 4 digits for Amex) with override support.
 - Produces expiry dates from the current month up to 5 years in the future (or fixed expiry).
 - Supports bulk generation with guaranteed uniqueness per batch.
@@ -88,4 +93,6 @@ The script avoids real BIN databases or personally identifiable information.
     +-- README.md      # This guide
     +-- tests/         # Unit tests that exercise poisygen.py
 ```
+
+
 

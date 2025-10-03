@@ -8,15 +8,24 @@ from __future__ import annotations
 
 import argparse
 import csv
+import html
 import io
 import json
+import re
 import secrets
 import sys
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
 CardRecord = Dict[str, str]
+ADDRESS_LABELS = ["Street", "City", "State/province/area", "Zip code"]
+ADDRESS_URL = "https://www.bestrandoms.com/random-address-in-us?quantity=1"
+ADDRESS_HEADERS = {"User-Agent": "Mozilla/5.0"}
+MODE_CARDS = "cards"
+MODE_ADDRESS = "address"
 
 WARNING_MESSAGE = (
     "WARNING: Generated card data is for development and QA testing only. "
@@ -310,6 +319,42 @@ FORMATTERS: Dict[str, Callable[[List[CardRecord]], str]] = {
 
 
 # ---------------------------------------------------------------------------
+# Random address helper
+# ---------------------------------------------------------------------------
+
+ADDRESS_PATTERN_TEMPLATE = r"<b>{label}:?\s*</b>\s*(?:&nbsp;|\s)*([^<]+)"
+
+
+def parse_random_address(html_text: str) -> Dict[str, str]:
+    """Parse address fields from the BestRandoms HTML payload."""
+    results: Dict[str, str] = {}
+    for label in ADDRESS_LABELS:
+        pattern = ADDRESS_PATTERN_TEMPLATE.format(label=re.escape(label))
+        match = re.search(pattern, html_text, flags=re.IGNORECASE)
+        if not match:
+            raise ValueError(f"Could not parse {label.lower()}")
+        value = html.unescape(match.group(1)).strip()
+        results[label] = value
+    return results
+
+
+def fetch_random_us_address(url: str = ADDRESS_URL) -> Dict[str, str]:
+    """Fetch a random US address and return the parsed fields."""
+    request = urllib.request.Request(url, headers=ADDRESS_HEADERS)
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            html_text = response.read().decode("utf-8")
+    except urllib.error.URLError as exc:  # pragma: no cover - network errors
+        raise RuntimeError(f"Failed to fetch address: {exc}") from exc
+    return parse_random_address(html_text)
+
+
+def display_us_address(address: Dict[str, str]) -> None:
+    for label in ADDRESS_LABELS:
+        print(f"{label}: {address[label]}")
+
+
+# ---------------------------------------------------------------------------
 # Interactive helpers
 # ---------------------------------------------------------------------------
 
@@ -318,6 +363,17 @@ def _read_line(prompt: str) -> str:
         return input(prompt)
     except EOFError:  # pragma: no cover - input stream terminated
         return ""
+
+
+def _prompt_mode_selection() -> str:
+    print("Select a mode:\n1. Generate test credit cards\n2. Fetch a random US address")
+    while True:
+        choice = _read_line("Enter 1 or 2: ").strip()
+        if choice == "1":
+            return MODE_CARDS
+        if choice == "2":
+            return MODE_ADDRESS
+        print("Please enter 1 or 2.")
 
 
 def _prompt_required_text(prompt: str) -> str:
@@ -457,12 +513,18 @@ def _collect_interactive_config(args: argparse.Namespace) -> None:
 def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate synthetic credit card numbers from a BIN pattern for QA/testing. "
-            "Numbers are Luhn valid but have no monetary value. Created by Poisy."
+            "Generate synthetic credit card numbers from a BIN pattern for QA/testing or "
+            "fetch a random US address. Numbers are Luhn valid but have no monetary value. "
+            "Created by Poisy."
         ),
         epilog=(
             "Use responsibly. Do not attempt fraud. Ensure compliance with local regulations."
         ),
+    )
+    parser.add_argument(
+        "--mode",
+        choices=[MODE_CARDS, MODE_ADDRESS],
+        help="Select 'cards' for BIN generator or 'address' for random address output.",
     )
     parser.add_argument(
         "--bin",
@@ -529,6 +591,26 @@ def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
     return parser.parse_args(argv)
 
+def _determine_mode(args: argparse.Namespace) -> str:
+    if args.mode:
+        return args.mode
+
+    card_related = any(
+        value is not None
+        for value in (
+            args.bin,
+            args.length,
+            args.output,
+            args.cvv_length,
+            args.expiry_month,
+            args.expiry_year,
+        )
+    ) or args.count != 10 or args.format != "pipe" or args.interactive or args.self_test
+    if card_related:
+        return MODE_CARDS
+
+    return _prompt_mode_selection()
+
 
 def main(argv: Optional[List[str]] = None) -> int:
     args = parse_arguments(argv)
@@ -536,6 +618,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     if args.self_test:
         success = _run_self_tests()
         return 0 if success else 1
+
+    mode = _determine_mode(args)
+
+    if mode == MODE_ADDRESS:
+        address = fetch_random_us_address()
+        display_us_address(address)
+        return 0
 
     generator = CardGenerator()
 
@@ -559,7 +648,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     return 1
     else:
         if not args.bin:
-            print("Error: --bin is required unless --interactive is used.", file=sys.stderr)
+            print(
+                "Error: --bin is required unless --interactive is used or --mode address is selected.",
+                file=sys.stderr,
+            )
             return 1
         cards = generator.generate_bulk(
             bin_pattern=args.bin,
