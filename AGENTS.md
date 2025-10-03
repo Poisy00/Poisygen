@@ -8,7 +8,8 @@
 ## Build, Test, and Development Commands
 - `python poisygen.py --bin 445566 --count 5`: run the generator directly from the repo.
 - `python -m unittest discover`: execute all tests for both the standalone script and wrappers.
-- `python poisygen.py --self-test` / `python poisygen.py --mode address`: run embedded smoke tests when external modules are unavailable.
+- `python poisygen.py`: interactive menu (cards, address, or both).
+- `python poisygen.py --self-test` / `python poisygen.py --mode address`: quick smoke checks without the menu.
 
 ## Coding Style & Naming Conventions
 - Python 3.8+ compatible; follow PEP 8 with 4-space indentation.
@@ -29,4 +30,4 @@
 ## Security & Distribution Tips
 - Refrain from packaging real BIN data or PII.
 - Verify hosted one-liners point to `https://raw.githubusercontent.com/Poisy00/Poisygen/main/poisygen.py` after each release.
-- Encourage consumers to run `python poisygen.py --self-test` / `python poisygen.py --mode address` before relying on updates.
+- Encourage consumers to run the published one-liner (`python -c "import urllib.request, sys; code = urllib.request.urlopen(\'https://raw.githubusercontent.com/Poisy00/Poisygen/main/poisygen.py\').read().decode(\'utf-8\'); exec(compile(code, \'poisygen.py\', \'exec\'))"`) or `python poisygen.py --self-test` before relying on updates.

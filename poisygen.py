@@ -26,6 +26,7 @@ ADDRESS_URL = "https://www.bestrandoms.com/random-address-in-us?quantity=1"
 ADDRESS_HEADERS = {"User-Agent": "Mozilla/5.0"}
 MODE_CARDS = "cards"
 MODE_ADDRESS = "address"
+MODE_BOTH = "cards_then_address"
 
 WARNING_MESSAGE = (
     "WARNING: Generated card data is for development and QA testing only. "
@@ -366,14 +367,16 @@ def _read_line(prompt: str) -> str:
 
 
 def _prompt_mode_selection() -> str:
-    print("Select a mode:\n1. Generate test credit cards\n2. Fetch a random US address")
+    print("Select a mode:\n1. Generate test credit cards\n2. Fetch a random US address\n3. Generate cards then fetch an address")
     while True:
-        choice = _read_line("Enter 1 or 2: ").strip()
+        choice = _read_line("Enter 1, 2, or 3: ").strip()
         if choice == "1":
             return MODE_CARDS
         if choice == "2":
             return MODE_ADDRESS
-        print("Please enter 1 or 2.")
+        if choice == "3":
+            return MODE_BOTH
+        print("Please enter 1, 2, or 3.")
 
 
 def _prompt_required_text(prompt: str) -> str:
@@ -523,8 +526,8 @@ def parse_arguments(argv: Optional[List[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=[MODE_CARDS, MODE_ADDRESS],
-        help="Select 'cards' for BIN generator or 'address' for random address output.",
+        choices=[MODE_CARDS, MODE_ADDRESS, MODE_BOTH],
+        help="Select 'cards', 'address', or 'cards_then_address' (cards followed by address).",
     )
     parser.add_argument(
         "--bin",
@@ -621,65 +624,65 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     mode = _determine_mode(args)
 
-    if mode == MODE_ADDRESS:
+    cards: List[Dict[str, str]] = []
+
+    if mode in {MODE_CARDS, MODE_BOTH}:
+        generator = CardGenerator()
+
+        if args.interactive or not args.bin:
+            while True:
+                _collect_interactive_config(args)
+                try:
+                    cards = generator.generate_bulk(
+                        bin_pattern=args.bin,
+                        count=args.count,
+                        length=args.length,
+                        cvv_length=args.cvv_length,
+                        years_ahead=args.years_ahead,
+                        expiry_month=args.expiry_month,
+                        expiry_year=args.expiry_year,
+                    )
+                    break
+                except (ValueError, RuntimeError) as exc:
+                    print(f"Error: {exc}", file=sys.stderr)
+                    if not _prompt_yes_no("Try again? (y/N): "):
+                        return 1
+        else:
+            cards = generator.generate_bulk(
+                bin_pattern=args.bin,
+                count=args.count,
+                length=args.length,
+                cvv_length=args.cvv_length,
+                years_ahead=args.years_ahead,
+                expiry_month=args.expiry_month,
+                expiry_year=args.expiry_year,
+            )
+
+        formatter = FORMATTERS[args.format]
+        rendered = formatter(cards)
+
+        if args.output:
+            path_out = Path(args.output)
+            try:
+                path_out.write_text(
+                    rendered + ("\n" if rendered and not rendered.endswith("\n") else ""),
+                    encoding="utf-8",
+                )
+            except OSError as exc:
+                print(f"Error writing output: {exc}", file=sys.stderr)
+                return 1
+        else:
+            print(rendered)
+
+        print(WARNING_MESSAGE, file=sys.stderr)
+
+        if mode == MODE_BOTH and not args.output:
+            print()
+
+    if mode in {MODE_ADDRESS, MODE_BOTH}:
         address = fetch_random_us_address()
         display_us_address(address)
-        return 0
 
-    generator = CardGenerator()
-
-    if args.interactive:
-        while True:
-            _collect_interactive_config(args)
-            try:
-                cards = generator.generate_bulk(
-                    bin_pattern=args.bin,
-                    count=args.count,
-                    length=args.length,
-                    cvv_length=args.cvv_length,
-                    years_ahead=args.years_ahead,
-                    expiry_month=args.expiry_month,
-                    expiry_year=args.expiry_year,
-                )
-                break
-            except (ValueError, RuntimeError) as exc:
-                print(f"Error: {exc}", file=sys.stderr)
-                if not _prompt_yes_no("Try again? (y/N): "):
-                    return 1
-    else:
-        if not args.bin:
-            print(
-                "Error: --bin is required unless --interactive is used or --mode address is selected.",
-                file=sys.stderr,
-            )
-            return 1
-        cards = generator.generate_bulk(
-            bin_pattern=args.bin,
-            count=args.count,
-            length=args.length,
-            cvv_length=args.cvv_length,
-            years_ahead=args.years_ahead,
-            expiry_month=args.expiry_month,
-            expiry_year=args.expiry_year,
-        )
-
-    formatter = FORMATTERS[args.format]
-    rendered = formatter(cards)
-
-    if args.output:
-        path = Path(args.output)
-        try:
-            path.write_text(
-                rendered + ("\n" if rendered and not rendered.endswith("\n") else ""),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            print(f"Error writing output: {exc}", file=sys.stderr)
-            return 1
-    else:
-        print(rendered)
-
-    print(WARNING_MESSAGE, file=sys.stderr)
     return 0
 
 

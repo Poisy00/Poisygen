@@ -1,1 +1,1 @@
-python -c "import urllib.request, sys; code = urllib.request.urlopen('https://raw.githubusercontent.com/Poisy00/Poisygen/main/poisygen.py').read().decode('utf-8'); sys.argv = ['poisygen.py', '--mode', 'address']; exec(compile(code, 'poisygen.py', 'exec'))"
+python -c "import urllib.request, sys; code = urllib.request.urlopen('https://raw.githubusercontent.com/Poisy00/Poisygen/main/poisygen.py').read().decode('utf-8'); exec(compile(code, 'poisygen.py', 'exec'))"
