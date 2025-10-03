@@ -41,7 +41,7 @@ python poisygen.py --interactive
 
 ## Features
 
-- Accepts BINs (6-8 digits) and BIN patterns with `x` placeholders.
+- Accepts BINs (6-9 digits) and BIN patterns with `x` placeholders.
 - Generates 13–19 digit card numbers that always pass Luhn checks.
 - Provides random CVV codes (3 digits or 4 digits for Amex) with override support.
 - Produces expiry dates from the current month up to 5 years in the future (or fixed expiry).

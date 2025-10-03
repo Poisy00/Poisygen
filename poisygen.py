@@ -62,7 +62,7 @@ def validate_luhn(card_number: str) -> bool:
 MIN_CARD_LENGTH = 13
 MAX_CARD_LENGTH = 19
 BIN_MIN_LENGTH = 6
-BIN_MAX_LENGTH = 8
+BIN_MAX_LENGTH = 9
 
 
 class CardGenerator:
@@ -226,7 +226,7 @@ class CardGenerator:
         if not prefix.isdigit():
             raise ValueError("BIN pattern must start with digits")
         if not (BIN_MIN_LENGTH <= len(prefix) <= BIN_MAX_LENGTH):
-            raise ValueError("BIN must be 6-8 digits long before placeholders")
+            raise ValueError("BIN must be 6-9 digits long before placeholders")
         return prefix
 
     def _determine_length(self, pattern: str, length: Optional[int]) -> int:
@@ -399,7 +399,7 @@ def _collect_interactive_config(args: argparse.Namespace) -> None:
     print("\nInteractive mode: press Enter to accept defaults where available.\n")
 
     args.bin = _prompt_required_text(
-        "BIN pattern (6-8 digits, optional 'x' placeholders): "
+        "BIN pattern (6-9 digits, optional 'x' placeholders): "
     ).replace(" ", "").lower()
 
     args.length = _prompt_int(

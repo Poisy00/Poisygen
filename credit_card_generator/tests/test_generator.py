@@ -19,6 +19,12 @@ class TestCardGenerator(unittest.TestCase):
         self.assertTrue(card.startswith("378282"))
         self.assertTrue(validate_luhn(card))
 
+    def test_generate_from_9_digit_bin(self) -> None:
+        card = self.generator.generate_from_bin("123456789", length=16)
+        self.assertTrue(card.startswith("123456789"))
+        self.assertEqual(len(card), 16)
+        self.assertTrue(validate_luhn(card))
+
     def test_generate_bulk_uniqueness(self) -> None:
         cards = self.generator.generate_bulk("555555", count=20, length=16)
         numbers = [card["number"] for card in cards]
